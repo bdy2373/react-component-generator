@@ -1,0 +1,36 @@
+# Project-scoped Codex permissions.
+default_permissions = "project-edit"
+approval_policy = "never"
+
+[permissions.project-edit]
+description = "Edit workspace files and run development commands with network access."
+extends = ":workspace"
+
+# Windows expands deny globs when each sandboxed process starts.
+[permissions.project-edit.filesystem]
+glob_scan_max_depth = 32
+
+[permissions.project-edit.filesystem.":workspace_roots"]
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"**/*.env" = "deny"
+"**/*credential*" = "deny"
+"**/*Credential*" = "deny"
+"**/*CREDENTIAL*" = "deny"
+"**/*secret*" = "deny"
+"**/*Secret*" = "deny"
+"**/*SECRET*" = "deny"
+"**/*.pem" = "deny"
+"**/*.key" = "deny"
+"**/*.p12" = "deny"
+"**/*.pfx" = "deny"
+"**/id_rsa*" = "deny"
+"**/id_ed25519*" = "deny"
+"**/.ssh" = "deny"
+"**/.aws" = "deny"
+"**/.gnupg" = "deny"
+"**/.npmrc" = "deny"
+"**/.netrc" = "deny"
+
+[permissions.project-edit.network]
+enabled = true
