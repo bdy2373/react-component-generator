@@ -2,6 +2,7 @@
 
 ## Operational Commands
 
+- **Codex 커밋 보호:** [.codex/hooks.json](.codex/hooks.json)의 `PreToolUse` 훅은 커밋 관련 도구 호출 전에 인자 없이 `bun run test` 전체를 실행하고, 실패·실행 오류·시간 초과 시 호출을 거부한다. `PostToolUse` 훅은 테스트 명령 실패 시 원래 도구 결과를 중단 피드백으로 대체한다. 이 피드백을 받은 메인 에이전트는 현재 작업을 중단하고 실패를 보고한다. 훅 자체가 Codex 턴 종료를 강제하지는 않는다. 테스트가 하나라도 실패하면 Codex는 작업과 후속 커밋·push를 즉시 중단하고 실패를 보고한다. 사용자의 후속 수정 요청이 있으면 수정·재검증을 진행하되 전체 테스트가 다시 성공하기 전까지 커밋하지 않는다. 훅 비활성화, 다른 도구·스크립트·Git 별칭, 테스트 삭제·skip·only 또는 실패 무시로 우회하지 않는다. 새 훅은 앱의 Review hooks / Settings > Hooks에서 신뢰 검토가 필요하며, 승인 전 실행된다고 보고하지 않는다.
 - Bun을 사용하고 의존성 변경은 기존 bun.lock에 반영한다. 다른 패키지 매니저의 잠금 파일을 추가하지 않는다.
 - `bun run dev`: 프론트엔드와 API 동시 실행. `bun run server`: API만 실행. 먼저 기존 프로세스와 포트 사용 여부를 확인한다.
 - `bun run build`: TypeScript 프로젝트 검사와 프론트엔드 빌드.
@@ -11,12 +12,15 @@
 
 ## Golden Rules
 
+- **민감 파일 접근 금지:** `.env`, `.env.*`, `*.env`, 이름에 `credential` 또는 `secret`이 포함된 파일·디렉토리(대소문자 무관), 개인키·인증서 파일(`*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ed25519*`), `.ssh`, `.aws`, `.gnupg`, `.npmrc`, `.netrc`는 읽기·수정·생성·삭제하지 않는다. 예제·템플릿도 예외로 취급하지 않는다. 검색·인덱싱·테스트·스크립트·다른 도구를 통한 간접 접근이나 내용 출력·복사도 금지한다. 필요한 작업은 민감 값이 없는 별도 자료로 진행하며 접근 차단을 해제하거나 우회하지 않는다. 프로젝트 권한 설정은 [.codex/config.toml](.codex/config.toml)에 둔다. 권한 프로필은 샌드박스 명령에 적용되므로 다른 도구에도 이 규칙을 직접 준수한다. Windows의 glob 차단은 프로세스 시작 시점에 수집한 경로와 설정된 탐색 깊이에 한정되므로, 이후 생성된 민감 파일에 접근하거나 차단 범위를 절대 보장한다고 보고하지 않는다.
 - **실행 계약:** 앱의 TypeScript와 AI가 반환하는 JavaScript/JSX를 구분한다. 생성물은 import 없이 자기 완결적으로 작성하며 인라인 스타일과 render 호출을 사용한다. 생성 지시와 미리보기 실행 방식을 한쪽만 변경하지 않는다. 근거: [생성 지시](server/index.ts:10), [TypeScript 금지](server/index.ts:20), [noInline](src/components/LivePreview.tsx:14).
 - **보안 경계:** 서버 환경변수 키 값을 설정 API나 프론트엔드 빌드 변수로 공개하지 않는다. 설정 API는 키 유무만 반환한다. 근거: [환경변수](server/index.ts:59), [설정 응답](server/index.ts:150), [설정 조회](src/App.tsx:24).
 - **이중 방어:** UI 입력 검사를 이유로 서버의 키·프롬프트 검사를 삭제하지 않는다. API를 직접 호출할 수 있음을 전제로 한다. 근거: [키 확인](src/App.tsx:33), [입력 확인](src/components/PromptInput.tsx:20), [서버 확인](server/index.ts:167). 현재 검사는 포괄적인 런타임 스키마 검증이 아니다.
 - **검증 경계:** 빌드 성공을 서버 타입 검사 성공으로 보고하지 않는다. 현재 TypeScript 참조는 src와 Vite 설정만 포함한다. 근거: [참조 설정](tsconfig.json:3), [앱 대상](tsconfig.app.json:27), [설정 대상](tsconfig.node.json:25). 서버 변경 검증은 하위 규칙을 따른다.
 
 ## TDD Rule
+
+`.codex/hooks/tdd-reminder.mjs`는 Codex `PreToolUse`에서 `.ts`·`.tsx` 생성·수정 호출을 감지하면 적용되는 가장 가까운 AGENTS.md의 TDD 섹션을 `additionalContext`로 전달한다. 리마인더를 받으면 변경의 적용 기준과 현재 RED-GREEN-REFACTOR 단계를 확인하고 진행한다. 이 훅은 준수 자동 판정이나 실행 차단이 아니며, 동적으로 계산된 셸 경로 등은 감지하지 못할 수 있다. 훅이 동작하지 않아도 아래 규칙은 그대로 적용한다.
 
 **이 규칙은 Rigid — 상황에 맞게 변형하지 마라.**
 
@@ -61,6 +65,7 @@
 
 ## Standards & References
 
+- **구현 후 evaluator 필수 호출:** 메인 에이전트는 코드 구현과 필요한 로컬 검증을 마친 뒤, 최종 완료 보고·커밋 전에 프로젝트 전용 [.codex/agents/evaluator.toml](.codex/agents/evaluator.toml)의 `evaluator` 서브 에이전트를 호출하고 결과를 기다린다. 요구사항·완료 기준, 변경 파일과 기준 diff, 실행한 검증 결과·미검증 항목을 전달한다. 모델은 `gpt-6.1-sol`, reasoning effort는 `high`를 사용한다. evaluator는 구현이 틀렸다는 가설로 독립 리뷰하며 직접 수정하거나 다른 evaluator를 호출하지 않는다. 메인은 지적의 근거를 확인해 타당한 문제를 수정하고 필요한 검증 후 재평가를 요청한다. PASS 전에는 구현 완료·커밋으로 진행하지 않는다. 호출 불가 또는 INCONCLUSIVE이면 평가 미완료와 원인을 보고하며 완료로 처리하지 않는다. 이 호출 의무는 메인 에이전트의 코드 구현 작업에 적용하며, evaluator 자신과 문서·설정만 변경하는 작업에는 적용하지 않는다.
 - TypeScript strict, 타입 전용 import와 기존 ESLint 설정에 맞춘다. 근거: [tsconfig.app.json](tsconfig.app.json:13), [eslint.config.js](eslint.config.js:8).
 - 변경 범위에 맞는 빌드·lint·테스트를 선택하고 미실시 검증은 완료로 보고하지 않는다. 문서만 변경하면 링크·근거·내용의 정합성을 확인한다.
 - 커밋 요청 시 [commit 스킬](.agents/skills/commit/SKILL.md)에 따라 논리 단위로 `feat/fix/refactor/chore: 한국어 요약` 메시지를 작성하며 추가 승인을 요청하지 않는다. 별도 요청 없이 push나 이력 재작성을 하지 않는다.

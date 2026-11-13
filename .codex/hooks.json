@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "bun \"$(git rev-parse --show-toplevel)/.codex/hooks/commit-protection.mjs\"",
+        "commandWindows": "powershell -NoProfile -Command \"$r = git rev-parse --show-toplevel; bun ($r + '/.codex/hooks/commit-protection.mjs')\"",
+        "timeout": 150,
+        "statusMessage": "Checking full test suite before commit"
+      }, {
+        "type": "command",
+        "command": "bun \"$(git rev-parse --show-toplevel)/.codex/hooks/tdd-reminder.mjs\"",
+        "commandWindows": "powershell -NoProfile -Command \"$r = git rev-parse --show-toplevel; bun ($r + '/.codex/hooks/tdd-reminder.mjs')\"",
+        "timeout": 10,
+        "additionalContextLimit": 6000,
+        "statusMessage": "Reviewing AGENTS.md TDD rules before TypeScript changes"
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "Bash",
+      "hooks": [{
+        "type": "command",
+        "command": "bun \"$(git rev-parse --show-toplevel)/.codex/hooks/commit-protection.mjs\"",
+        "commandWindows": "powershell -NoProfile -Command \"$r = git rev-parse --show-toplevel; bun ($r + '/.codex/hooks/commit-protection.mjs')\"",
+        "timeout": 10,
+        "statusMessage": "Stopping on test failure"
+      }]
+    }]
+  }
+}
