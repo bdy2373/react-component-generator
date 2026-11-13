@@ -99,5 +99,3 @@ it('스토리지 접근이 차단돼도 입력과 생성을 계속한다', async
   fireEvent.click(screen.getByRole('button', { name: '컴포넌트 생성' }));
   await waitFor(() => expect(screen.getByRole('article')).toHaveTextContent('카드'));
 });
-
-
